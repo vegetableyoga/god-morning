@@ -31,13 +31,11 @@
             min-height: 100vh;
             overflow-x: hidden;
             touch-action: pan-y;
-            /* テキスト選択とシステムメニューを徹底排除 */
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
         }
 
-        /* アラーム画面 */
         #alarm-screen {
             position: fixed;
             inset: 0;
@@ -78,7 +76,6 @@
             100% { transform: scale(1); }
         }
 
-        /* メインリスト */
         .list-container {
             width: 95%;
             max-width: 400px;
@@ -119,7 +116,6 @@
             transition: transform 0.3s ease, opacity 0.3s ease;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             font-size: 0.95rem;
-            /* iOSでのタップハイライトを消去 */
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -177,12 +173,17 @@
         .edit-input, .time-input {
             width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444;
             color: white; padding: 12px; margin: 8px 0; border-radius: 8px;
-            /* 入力欄はテキスト選択を許可 */
             -webkit-user-select: text;
             user-select: text;
         }
         .time-input { font-size: 2.5rem; text-align: center; color: var(--good-color); }
         .save-btn { background: var(--good-color); color: black; padding: 15px; width: 100%; border: none; border-radius: 10px; font-weight: bold; margin-top: 20px; }
+        
+        .notification-btn {
+            width: 100%; padding: 15px; background: #222; border: 1px solid var(--good-color); 
+            color: var(--good-color); border-radius: 10px; margin-top: 20px; font-weight: bold;
+            cursor: pointer; -webkit-tap-highlight-color: transparent;
+        }
     </style>
 </head>
 <body>
@@ -220,10 +221,7 @@
 
     <div id="edit-modal">
         <h2 id="modal-header-title" class="modal-title">GOD List</h2>
-        <div id="alarm-section">
-            <label style="color:#888; font-size:0.8rem">起床時刻設定</label>
-            <input type="time" id="alarm-time-input" class="time-input">
-        </div>
+        <div id="alarm-section"></div>
         <div id="list-section">
             <div id="bad-inputs"></div>
             <div id="good-inputs" style="margin-top:10px"></div>
@@ -232,6 +230,15 @@
     </div>
 
     <script>
+        // Service Workerの登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('裏方（SW）配属完了');
+                });
+            });
+        }
+
         const defaultBad = ["インスタのストーリーを無限スクロール", "コンビニに立ち寄り菓子パン二個ゲット", "深夜のスマホいじり", "だらだら二度寝", "無意識のネガティブ発言"];
         const defaultGood = ["5:45に一発で飛び起きる", "ヨガ30分とシャワー", "白湯を飲む", "感謝を3つ書き出す", "今日一番の優先事項を決める"];
 
@@ -262,6 +269,7 @@
                 alarmScreen.style.display = 'flex';
                 mainList.style.display = 'none';
                 alarmAudio.play().catch(e => console.log("音声を有効にするため画面をタップしてください"));
+                sendNotification();
             }
         }
 
@@ -272,11 +280,14 @@
             mainList.style.display = 'flex';
         };
 
+        // リスト描画（見出しのテキストをベジ指定のものに変更だぜ！）
         function renderList() {
             const badC = document.getElementById('bad-items-container');
             const goodC = document.getElementById('good-items-container');
-            badC.innerHTML = `<h2 class="bad-title">Goodbye👎(やめたい悪循環)</h2>`; 
-            goodC.innerHTML = `<h2 class="good-title">Let's Go👍(続けたい好循環)</h2>`;
+            
+            // 哲学のこもった見出しへアップデート
+            badC.innerHTML = `<h2 class="bad-title">Goodbye👎(やめたい悪循環) <span style="font-size:0.7rem; font-weight:normal;">→右スワイプして癖にお別れ</span></h2>`; 
+            goodC.innerHTML = `<h2 class="good-title">Let's Go👍(続けたい好循環) <span style="font-size:0.7rem; font-weight:normal;">→1秒長押しして習慣にしよう</span></h2>`;
 
             badList.forEach(t => {
                 const d = document.createElement('div'); d.className='item bad'; d.innerText=t;
@@ -292,9 +303,18 @@
             const modal = document.getElementById('edit-modal');
             modal.style.display = 'block';
             document.getElementById('modal-header-title').innerText = 'GOD Alarm';
-            document.getElementById('alarm-section').style.display = 'block';
+            
+            const alarmSection = document.getElementById('alarm-section');
+            alarmSection.innerHTML = `
+                <label style="color:#888; font-size:0.8rem">起床時刻設定</label>
+                <input type="time" id="alarm-time-input" class="time-input" value="${alarmTime}">
+                <button onclick="requestNotificationPermission()" class="notification-btn">
+                    🔔 通知を有効にして朝に備える
+                </button>
+            `;
+            
+            alarmSection.style.display = 'block';
             document.getElementById('list-section').style.display = 'none';
-            document.getElementById('alarm-time-input').value = alarmTime;
         }
 
         function openListSettings() {
@@ -308,7 +328,7 @@
         }
 
         function saveSettings() {
-            alarmTime = document.getElementById('alarm-time-input').value || alarmTime;
+            alarmTime = document.getElementById('alarm-time-input')?.value || alarmTime;
             const bIns = document.querySelectorAll('.bad-in');
             const gIns = document.querySelectorAll('.good-in');
             if(bIns.length > 0) badList = Array.from(bIns).map(i => i.value);
@@ -317,6 +337,34 @@
             localStorage.setItem('gm_good', JSON.stringify(goodList));
             localStorage.setItem('gm_time', alarmTime);
             location.reload();
+        }
+
+        function requestNotificationPermission() {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    navigator.serviceWorker.ready.then(reg => {
+                        reg.showNotification('GOD Morning', {
+                            body: '通知テスト成功！明日の朝、君を呼びに来るぜ。',
+                            icon: 'icon.png'
+                        });
+                    });
+                    alert('通知が許可されたぜ！');
+                } else {
+                    alert('通知がブロックされているぜ。スマホの設定を確認してくれ。');
+                }
+            });
+        }
+
+        function sendNotification() {
+            if (Notification.permission === 'granted') {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.showNotification('GOD Morning', {
+                        body: '修行の時間だ。一発で飛び起きろ！',
+                        icon: 'icon.png',
+                        tag: 'alarm-notification'
+                    });
+                });
+            }
         }
 
         function initSwipe(item) {
@@ -338,18 +386,13 @@
 
             item.addEventListener('touchend', () => {
                 if (dx > window.innerWidth * 0.35) {
-                    // 右へ消え去る
                     item.style.transition = 'transform 0.3s ease-in, opacity 0.2s ease-in'; 
                     item.style.transform = 'translateX(100vw)';
-                    
                     setTimeout(() => {
-                        // アニメーションなしで元の位置にセット
                         item.classList.add('done'); 
                         item.style.transition = 'none'; 
                         item.style.transform = 'translateX(0)'; 
                         item.style.opacity = '0';
-                        
-                        // 一瞬置いてから、ふわっとグレーアウト状態で浮かび上がらせる
                         requestAnimationFrame(() => {
                             item.style.transition = 'opacity 0.8s ease-out';
                             item.style.opacity = '0.55';
@@ -375,7 +418,6 @@
                     markDone(); 
                 }, 1000); 
             }, {passive: true});
-
             item.addEventListener('touchend', () => { 
                 clearTimeout(timer); 
                 if (!item.classList.contains('done')) item.classList.remove('holding'); 
