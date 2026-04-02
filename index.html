@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="icon" type="image/png" href="favicon.png">
-    <title>GOD Morning - Masterpiece</title>
+    
+    <title>GOD Morning</title>
+    <meta name="apple-mobile-web-app-title" content="GOD Morning">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
     <style>
         :root {
             --bg: #1a1a1a;
@@ -27,9 +31,13 @@
             min-height: 100vh;
             overflow-x: hidden;
             touch-action: pan-y;
+            /* テキスト選択とシステムメニューを徹底排除 */
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
 
-        /* アラーム画面：v16の重厚感を完全維持 */
+        /* アラーム画面 */
         #alarm-screen {
             position: fixed;
             inset: 0;
@@ -62,8 +70,6 @@
             animation: pulse 1s infinite;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            touch-action: none; 
         }
 
         @keyframes pulse {
@@ -72,11 +78,11 @@
             100% { transform: scale(1); }
         }
 
-        /* メインコンテナ：v16の美学を崩さず一覧性を追求 */
+        /* メインリスト */
         .list-container {
             width: 95%;
             max-width: 400px;
-            padding: 10px 0; /* v16より少しだけタイトに */
+            padding: 10px 0;
             display: none;
             flex-direction: column;
         }
@@ -85,7 +91,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
         }
 
         .app-name {
@@ -101,21 +107,20 @@
         .icon-btn { background: none; border: none; cursor: pointer; padding: 5px; display: flex; }
         .icon-btn svg { width: 2.2rem; height: 2.2rem; fill: var(--icon-color); }
 
-        /* セクション見出し：ピクセル単位の調整 */
         h2 { font-size: 0.8rem; margin: 16px 0 6px 0; font-weight: bold; }
-        .bad-title { color: var(--bad-color); border-bottom: 1px solid var(--bad-color); padding-bottom: 3px;}
-        .good-title { color: var(--good-color); border-bottom: 1px solid var(--good-color); padding-bottom: 3px;}
+        .bad-title { color: var(--bad-color); border-bottom: 1px solid var(--bad-color); padding-bottom: 3px; }
+        .good-title { color: var(--good-color); border-bottom: 1px solid var(--good-color); padding-bottom: 3px; }
 
-        /* アイテム：ここがMaster's Touch。見た目を変えずサイズを削る */
         .item {
             background: #2a2a2a;
-            margin: 7px 0; /* 10pxから7pxへ */
-            padding: 17px 20px; /* 20pxから17pxへ */
+            margin: 7px 0;
+            padding: 17px 20px;
             border-radius: 12px;
-            user-select: none;
             transition: transform 0.3s ease, opacity 0.3s ease;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             font-size: 0.95rem;
+            /* iOSでのタップハイライトを消去 */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .item.bad.done {
@@ -123,8 +128,8 @@
             color: var(--gray) !important;
             text-decoration: line-through !important;
             opacity: 0.55 !important;
-            transform: translateX(0) !important;
             pointer-events: none;
+            transform: translateX(0) !important;
         }
 
         .item.good.done {
@@ -140,9 +145,8 @@
             transition: background-color 1s linear;
         }
 
-        /* フッター：品格としてのクレジット */
         footer {
-            margin-top: 15px;
+            margin-top: 30px;
             font-size: 0.7rem;
             color: #444;
             text-align: center;
@@ -158,7 +162,6 @@
             border: 1px solid var(--good-color);
             border-radius: 15px;
             color: var(--good-color);
-            font-weight: bold;
         }
 
         #edit-modal {
@@ -174,6 +177,9 @@
         .edit-input, .time-input {
             width: 100%; box-sizing: border-box; background: #222; border: 1px solid #444;
             color: white; padding: 12px; margin: 8px 0; border-radius: 8px;
+            /* 入力欄はテキスト選択を許可 */
+            -webkit-user-select: text;
+            user-select: text;
         }
         .time-input { font-size: 2.5rem; text-align: center; color: var(--good-color); }
         .save-btn { background: var(--good-color); color: black; padding: 15px; width: 100%; border: none; border-radius: 10px; font-weight: bold; margin-top: 20px; }
@@ -181,9 +187,11 @@
 </head>
 <body>
 
+    <audio id="alarm-audio" src="alarm.mp3" loop></audio>
+
     <div id="alarm-screen">
         <h1 id="alarm-time-display">05:45</h1>
-        <button id="stop-alarm" onpointerdown="stopAlarm()">STOP ALARM</button>
+        <button id="stop-alarm" onclick="stopAlarm()">STOP ALARM</button>
     </div>
 
     <div class="list-container" id="main-list">
@@ -199,10 +207,7 @@
             </div>
         </div>
         
-        <h2 class="bad-title">Goodbye👎(やめたい悪循環) ←読んだら右にスライドアウト</h2>
         <div id="bad-items-container"></div>
-
-        <h2 class="good-title">Let's Go👍(続けたい好循環) ←読んだら長押しして脳に吸収</h2>
         <div id="good-items-container"></div>
 
         <div id="finish-msg">
@@ -227,48 +232,65 @@
     </div>
 
     <script>
-        const defaultBad = ["インスタのストーリーを無限スクロール", "コンビニに立ち寄り菓子パン二個ゲット", "（悪循環3）", "（悪循環4）", "（悪循環5）"];
-        const defaultGood = ["5:45にアラームをかけ一発で飛び起きる", "ヨガの練習を朝食前に30分してシャワー", "（好循環3）", "（好循環4）", "（好循環5）"];
+        const defaultBad = ["インスタのストーリーを無限スクロール", "コンビニに立ち寄り菓子パン二個ゲット", "深夜のスマホいじり", "だらだら二度寝", "無意識のネガティブ発言"];
+        const defaultGood = ["5:45に一発で飛び起きる", "ヨガ30分とシャワー", "白湯を飲む", "感謝を3つ書き出す", "今日一番の優先事項を決める"];
 
         let badList = JSON.parse(localStorage.getItem('gm_bad')) || defaultBad;
         let goodList = JSON.parse(localStorage.getItem('gm_good')) || defaultGood;
         let alarmTime = localStorage.getItem('gm_time') || "05:45";
-        let lastUpdate = localStorage.getItem('gm_last_update') || Date.now();
-
+        
         const alarmScreen = document.getElementById('alarm-screen');
         const mainList = document.getElementById('main-list');
         const alarmDisplay = document.getElementById('alarm-time-display');
+        const alarmAudio = document.getElementById('alarm-audio');
         let doneCount = 0;
+        let alarmFired = false;
 
         window.onload = () => {
-            if (alarmDisplay) alarmDisplay.innerText = alarmTime;
+            alarmDisplay.innerText = alarmTime;
             renderList();
+            setInterval(checkTime, 1000);
         };
 
-        window.stopAlarm = function() {
-            alarmScreen.style.display = 'none';
-            mainList.style.display = 'block';
-            if (Date.now() - lastUpdate > 7 * 24 * 60 * 60 * 1000) {
-                alert("一週間リストに更新がありません。最近の生活を振り返りましょう！");
+        function checkTime() {
+            const now = new Date();
+            const currentStr = now.getHours().toString().padStart(2, '0') + ":" + 
+                             now.getMinutes().toString().padStart(2, '0');
+            
+            if (currentStr === alarmTime && !alarmFired) {
+                alarmFired = true;
+                alarmScreen.style.display = 'flex';
+                mainList.style.display = 'none';
+                alarmAudio.play().catch(e => console.log("音声を有効にするため画面をタップしてください"));
             }
+        }
+
+        window.stopAlarm = function() {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+            alarmScreen.style.display = 'none';
+            mainList.style.display = 'flex';
         };
 
         function renderList() {
             const badC = document.getElementById('bad-items-container');
             const goodC = document.getElementById('good-items-container');
-            badC.innerHTML = ''; goodC.innerHTML = '';
+            badC.innerHTML = `<h2 class="bad-title">Goodbye👎(やめたい悪循環)</h2>`; 
+            goodC.innerHTML = `<h2 class="good-title">Let's Go👍(続けたい好循環)</h2>`;
+
             badList.forEach(t => {
-                const d = document.createElement('div'); d.className='item bad swipe-item'; d.innerText=t;
+                const d = document.createElement('div'); d.className='item bad'; d.innerText=t;
                 initSwipe(d); badC.appendChild(d);
             });
             goodList.forEach(t => {
-                const d = document.createElement('div'); d.className='item good hold-item'; d.innerText=t;
+                const d = document.createElement('div'); d.className='item good'; d.innerText=t;
                 initHold(d); goodC.appendChild(d);
             });
         }
 
         function openAlarmSettings() {
-            document.getElementById('edit-modal').style.display = 'block';
+            const modal = document.getElementById('edit-modal');
+            modal.style.display = 'block';
             document.getElementById('modal-header-title').innerText = 'GOD Alarm';
             document.getElementById('alarm-section').style.display = 'block';
             document.getElementById('list-section').style.display = 'none';
@@ -276,7 +298,8 @@
         }
 
         function openListSettings() {
-            document.getElementById('edit-modal').style.display = 'block';
+            const modal = document.getElementById('edit-modal');
+            modal.style.display = 'block';
             document.getElementById('modal-header-title').innerText = 'GOD List';
             document.getElementById('alarm-section').style.display = 'none';
             document.getElementById('list-section').style.display = 'block';
@@ -293,31 +316,70 @@
             localStorage.setItem('gm_bad', JSON.stringify(badList));
             localStorage.setItem('gm_good', JSON.stringify(goodList));
             localStorage.setItem('gm_time', alarmTime);
-            localStorage.setItem('gm_last_update', Date.now());
             location.reload();
         }
 
         function initSwipe(item) {
             let startX, dx = 0;
-            item.addEventListener('touchstart', (e) => { if(item.classList.contains('done')) return; startX = e.touches[0].clientX; item.style.transition = 'none'; }, {passive: true});
-            item.addEventListener('touchmove', (e) => { if(item.classList.contains('done')) return; dx = e.touches[0].clientX - startX; if (dx > 0) { item.style.transform = `translateX(${dx}px)`; item.style.opacity = 1 - (dx / (window.innerWidth * 1.2)); } }, {passive: true});
+            item.addEventListener('touchstart', (e) => { 
+                if(item.classList.contains('done')) return; 
+                startX = e.touches[0].clientX; 
+                item.style.transition = 'none'; 
+            }, {passive: true});
+
+            item.addEventListener('touchmove', (e) => { 
+                if(item.classList.contains('done')) return; 
+                dx = e.touches[0].clientX - startX; 
+                if (dx > 0) { 
+                    item.style.transform = `translateX(${dx}px)`; 
+                    item.style.opacity = 1 - (dx / (window.innerWidth * 1.1)); 
+                } 
+            }, {passive: true});
+
             item.addEventListener('touchend', () => {
                 if (dx > window.innerWidth * 0.35) {
-                    item.style.transition = 'transform 0.3s ease-in, opacity 0.2s ease-in'; item.style.transform = 'translateX(100vw)';
+                    // 右へ消え去る
+                    item.style.transition = 'transform 0.3s ease-in, opacity 0.2s ease-in'; 
+                    item.style.transform = 'translateX(100vw)';
+                    
                     setTimeout(() => {
-                        item.classList.add('done'); item.style.transform = 'translateX(0)'; item.style.opacity = '0'; item.offsetHeight; 
-                        item.style.transition = 'opacity 0.8s ease-out'; item.style.opacity = '0.55';
+                        // アニメーションなしで元の位置にセット
+                        item.classList.add('done'); 
+                        item.style.transition = 'none'; 
+                        item.style.transform = 'translateX(0)'; 
+                        item.style.opacity = '0';
+                        
+                        // 一瞬置いてから、ふわっとグレーアウト状態で浮かび上がらせる
+                        requestAnimationFrame(() => {
+                            item.style.transition = 'opacity 0.8s ease-out';
+                            item.style.opacity = '0.55';
+                        });
                         markDone();
                     }, 300);
-                } else { item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out'; item.style.transform = 'translateX(0)'; item.style.opacity = '1'; }
+                } else { 
+                    item.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out'; 
+                    item.style.transform = 'translateX(0)'; item.style.opacity = '1'; 
+                }
                 dx = 0;
             });
         }
 
         function initHold(item) {
             let timer;
-            item.addEventListener('touchstart', () => { if (item.classList.contains('done')) return; item.classList.add('holding'); timer = setTimeout(() => { item.classList.remove('holding'); item.classList.add('done'); markDone(); }, 1000); });
-            item.addEventListener('touchend', () => { clearTimeout(timer); if (!item.classList.contains('done')) item.classList.remove('holding'); });
+            item.addEventListener('touchstart', () => { 
+                if (item.classList.contains('done')) return; 
+                item.classList.add('holding'); 
+                timer = setTimeout(() => { 
+                    item.classList.remove('holding'); 
+                    item.classList.add('done'); 
+                    markDone(); 
+                }, 1000); 
+            }, {passive: true});
+
+            item.addEventListener('touchend', () => { 
+                clearTimeout(timer); 
+                if (!item.classList.contains('done')) item.classList.remove('holding'); 
+            });
         }
 
         function markDone() {
