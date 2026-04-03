@@ -1,8 +1,8 @@
 // api/save-subscription.js
-const { kv } = require('@vercel/kv');
+import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
-  // POSTメソッド以外は受け付けないぜ
+  // POSTメソッド以外は受け付けない
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -10,8 +10,7 @@ export default async function handler(req, res) {
   try {
     const subscription = req.body;
     
-    // 「user_subscription」という名前で、宇宙のメモ帳（KV）に保存する！
-    // 本来はユーザーIDごとに分けるけど、今はベジ専用だから1つでOKだ。
+    // 「user_subscription」という名前で、KVに保存する
     await kv.set('user_subscription', subscription);
 
     console.log('住所の保存に成功したぜ！');
