@@ -336,9 +336,6 @@
             location.reload();
         }
 
-        // --- ここから宇宙対応の修正だぜ！ ---
-
-        // VAPIDキーをブラウザが読める形式に翻訳する関数
         function urlBase64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -350,38 +347,45 @@
             return outputArray;
         }
 
-        // 宇宙対応版の「通知許可」関数
         async function requestNotificationPermission() {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
                 try {
                     const registration = await navigator.serviceWorker.ready;
                     
-                    // ベジのPublic Keyを翻訳機にかける
                     const publicVapidKey = 'BBEMaL8-ujaZ7kU1f5cnGBckJnwAfHyAwVmAabCvMOm79cInvUnkosRt26KQipvJbjrz9pabQi56kwOvA1pF3dQ';
                     const convertedKey = urlBase64ToUint8Array(publicVapidKey);
 
-                    // 宇宙からの手紙を受け取るための「ポスト」を作成
                     const subscription = await registration.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: convertedKey
                     });
 
-                    // 成功したらコンソールに住所を表示
+                    // --- ここで宇宙のデータベース（Vercel KV）へ自動発送だ！ ---
+                    await fetch('/api/save-subscription', {
+                        method: 'POST',
+                        body: JSON.stringify(subscription),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    console.log('宇宙のメモ帳への保存に成功！');
+                    // ---------------------------------------------------
+
                     console.log('ポストの住所（Subscription）:', JSON.stringify(subscription));
                     
                     registration.showNotification('GOD Morning', {
-                        body: '通知テストが成功しました。通知を受け取るには、このアプリをオフにせず、バックグラウンドにオンのまま置いておく必要があります。',
+                        body: '通知テストが成功しました。宇宙のメモ帳への保存も完了だぜ！',
                         icon: 'icon.png'
                     });
                     
-                    alert('通知が許可されました。コンソールの住所を確認してください。');
+                    alert('通知が許可されました。宇宙との同期も完了だぜ！');
                 } catch (e) {
                     console.error('宇宙ポスト作成失敗:', e);
-                    alert('通知の設定中にエラーが発生しました。詳細はコンソールを確認してください。');
+                    alert('設定中にエラーが発生した。コンソールを確認してくれ。');
                 }
             } else {
-                alert('通知がブロックされています。設定を確認してください。');
+                alert('通知がブロックされているぜ。設定を確認してくれ。');
             }
         }
 
@@ -389,7 +393,7 @@
             if (Notification.permission === 'granted') {
                 navigator.serviceWorker.ready.then(reg => {
                     reg.showNotification('GOD Morning', {
-                        body: 'おはよう！素敵な一日になるよ。',
+                        body: 'おはよう！最高のスタートを切ろう！',
                         icon: 'icon.png',
                         tag: 'alarm-notification'
                     });
